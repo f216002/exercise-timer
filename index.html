@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#10110f" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+  <title>運動計時器</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f3ef;
+      --panel: #ffffff;
+      --panel-2: #e9e8e2;
+      --ink: #141510;
+      --muted: #585a51;
+      --line: #cecec5;
+      --accent: #df4b25;
+      --accent-ink: #fff;
+      --focus: #1769aa;
+      --shadow: 0 18px 50px rgba(30, 30, 20, .10);
+      --display: #171915;
+      --display-ink: #f7f4e9;
+      --tick: #f0bf35;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #10110f;
+        --panel: #1a1b18;
+        --panel-2: #252620;
+        --ink: #f1f0e8;
+        --muted: #b3b4aa;
+        --line: #383a32;
+        --accent: #f0643f;
+        --accent-ink: #140b07;
+        --focus: #72b7e5;
+        --shadow: 0 20px 50px rgba(0, 0, 0, .34);
+        --display: #080907;
+        --display-ink: #f8f5e8;
+        --tick: #ffd35c;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Noto Sans TC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    .wrap {
+      width: min(760px, 100%);
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding: max(22px, env(safe-area-inset-top)) 18px max(28px, env(safe-area-inset-bottom));
+      display: grid;
+      align-content: center;
+      gap: 18px;
+    }
+    .mode-switch {
+      width: min(390px, 100%);
+      margin-inline: auto;
+      padding: 4px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      background: var(--panel-2);
+      border-radius: 12px;
+    }
+    .mode-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .mode-btn[aria-pressed="true"] {
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: 0 2px 9px rgba(0,0,0,.09);
+    }
+    .timer-face {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(28px, 7vw, 52px) 16px 26px;
+      text-align: center;
+      color: var(--display-ink);
+      background: var(--display);
+      border-radius: 22px 22px 8px 8px;
+      box-shadow: var(--shadow);
+    }
+    .timer-face::before {
+      content: "";
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      width: 44px;
+      height: 3px;
+      transform: translateX(-50%);
+      background: var(--tick);
+      border-radius: 99px;
+      opacity: .85;
+    }
+    .status {
+      min-height: 24px;
+      color: #b9b9af;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .06em;
+    }
+    .display {
+      margin: 4px 0 0;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: clamp(70px, 18vw, 126px);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.035em;
+      line-height: .95;
+      white-space: nowrap;
+    }
+    .progress-track {
+      width: min(430px, 80%);
+      height: 4px;
+      margin: 25px auto 0;
+      overflow: hidden;
+      background: #373a33;
+      border-radius: 99px;
+    }
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: var(--tick);
+      border-radius: inherit;
+      transition: width .2s linear;
+    }
+    .control-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 0;
+      border-radius: 8px 8px 22px 22px;
+      box-shadow: var(--shadow);
+    }
+    .settings { padding: 22px; }
+    .section-label {
+      display: block;
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .time-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .time-field {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      min-width: 0;
+      height: 58px;
+      padding: 0 13px;
+      background: var(--panel-2);
+      border: 1px solid transparent;
+      border-radius: 10px;
+    }
+    .time-field:focus-within { border-color: var(--focus); }
+    .time-field input {
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 32px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      appearance: textfield;
+    }
+    .time-field input::-webkit-inner-spin-button { appearance: none; }
+    .time-unit { color: var(--muted); font-size: 13px; }
+    .sound-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .sound-option { position: relative; }
+    .sound-option input {
+      position: absolute;
+      z-index: 2;
+      top: 8px;
+      right: 8px;
+      width: 17px;
+      height: 17px;
+      margin: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .sound-option label {
+      min-height: 76px;
+      padding: 12px 5px 10px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .sound-option input:checked + label {
+      color: var(--ink);
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+    }
+    .sound-option input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .sound-mark {
+      height: 24px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .sound-mark i { display: block; width: 3px; background: currentColor; border-radius: 4px; }
+    .sound-mark i:nth-child(1) { height: 8px; }
+    .sound-mark i:nth-child(2) { height: 20px; }
+    .sound-mark i:nth-child(3) { height: 13px; }
+    .sound-mark i:nth-child(4) { height: 6px; }
+    .sound-option:nth-child(2) .sound-mark i:nth-child(1),
+    .sound-option:nth-child(2) .sound-mark i:nth-child(4) { height: 18px; }
+    .sound-option:nth-child(3) .sound-mark i { width: 4px; border-radius: 50%; }
+    .volume-row {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 28px;
+      margin: 0;
+      accent-color: var(--accent);
+    }
+    .actions {
+      padding: 18px 22px 22px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+    }
+    .btn {
+      min-height: 54px;
+      border: 0;
+      border-radius: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:focus-visible, .mode-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .btn-primary { grid-column: 1 / -1; background: var(--accent); color: var(--accent-ink); font-size: 17px; }
+    .btn-primary[data-state="running"] { background: var(--tick); color: #1e1704; }
+    .btn-secondary { background: var(--panel-2); color: var(--ink); }
+    .btn:disabled { opacity: .42; cursor: not-allowed; }
+    .hint {
+      margin: 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .error {
+      min-height: 20px;
+      margin: -10px 0 0;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+    @media (max-width: 430px) {
+      .wrap { padding-inline: 12px; gap: 12px; align-content: start; }
+      .timer-face { padding-top: 38px; }
+      .display { font-size: clamp(64px, 22vw, 94px); }
+      .settings { padding: 18px 14px; }
+      .actions { padding: 16px 14px 18px; }
+      .time-inputs { gap: 6px; }
+      .time-field { height: 54px; padding-inline: 9px; }
+      .sound-option label { min-height: 70px; }
+    }
+    @media (max-height: 720px) and (min-width: 500px) {
+      .wrap { align-content: start; }
+      .timer-face { padding-top: 35px; padding-bottom: 20px; }
+      .display { font-size: 82px; }
+      .progress-track { margin-top: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="mode-switch" aria-label="計時模式">
+      <button class="mode-btn" type="button" data-mode="down" aria-pressed="true">倒數計時</button>
+      <button class="mode-btn" type="button" data-mode="up" aria-pressed="false">正向計時</button>
+    </div>
+
+    <section aria-label="計時顯示">
+      <div class="timer-face">
+        <div class="status" id="status" aria-live="polite">準備開始</div>
+        <div class="display" id="display" role="timer" aria-atomic="true">00:01:00</div>
+        <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress"></div></div>
+      </div>
+
+      <div class="control-panel">
+        <div class="settings" id="settings">
+          <span class="section-label" id="timeLabel">設定倒數時間</span>
+          <div class="time-inputs">
+            <label class="time-field">
+              <input id="hours" type="number" inputmode="numeric" min="0" max="99" value="0" aria-label="小時" />
+              <span class="time-unit">小時</span>
+            </label>
+            <label class="time-field">
+              <input id="minutes" type="number" inputmode="numeric" min="0" max="59" value="1" aria-label="分鐘" />
+              <span class="time-unit">分</span>
+            </label>
+            <label class="time-field">
+              <input id="seconds" type="number" inputmode="numeric" min="0" max="59" value="0" aria-label="秒鐘" />
+              <span class="time-unit">秒</span>
+            </label>
+          </div>
+
+          <span class="section-label">每秒提示音</span>
+          <div class="sound-row" role="radiogroup" aria-label="每秒提示音">
+            <div class="sound-option">
+              <input type="radio" name="sound" id="soundClock" value="clock" checked />
+              <label for="soundClock"><span class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>時鐘音</label>
+            </div>
+            <div class="sound-option">
+              <input type="radio" name="sound" id="soundXylophone" value="xylophone" />
+              <label for="soundXylophone"><span class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>木琴聲</label>
+            </div>
+            <div class="sound-option">
+              <input type="radio" name="sound" id="soundCrystal" value="crystal" />
+              <label for="soundCrystal"><span class="sound-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>水晶音</label>
+            </div>
+          </div>
+          <label class="volume-row" for="volume">
+            <span>音量</span>
+            <input id="volume" type="range" min="0" max="1" step="0.05" value="0.55" />
+            <output id="volumeValue" for="volume">55%</output>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="startPause" type="button">開始</button>
+          <button class="btn btn-secondary" id="reset" type="button">重設</button>
+          <button class="btn btn-secondary" id="preview" type="button">試聽聲音</button>
+        </div>
+      </div>
+    </section>
+    <p class="error" id="error" role="alert"></p>
+    <p class="hint">開始後會盡量保持螢幕喚醒；手機靜音時，仍需開啟媒體音量。</p>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+      var mode = "down";
+      var state = "idle";
+      var totalSeconds = 60;
+      var elapsedBeforeRun = 0;
+      var runStartedAt = 0;
+      var lastWholeSecond = 0;
+      var timerId = null;
+      var audioCtx = null;
+      var masterGain = null;
+      var wakeLock = null;
+
+      var display = document.getElementById("display");
+      var status = document.getElementById("status");
+      var progress = document.getElementById("progress");
+      var error = document.getElementById("error");
+      var timeLabel = document.getElementById("timeLabel");
+      var startPause = document.getElementById("startPause");
+      var resetBtn = document.getElementById("reset");
+      var preview = document.getElementById("preview");
+      var hours = document.getElementById("hours");
+      var minutes = document.getElementById("minutes");
+      var seconds = document.getElementById("seconds");
+      var volume = document.getElementById("volume");
+      var volumeValue = document.getElementById("volumeValue");
+      var modeButtons = Array.prototype.slice.call(document.querySelectorAll(".mode-btn"));
+      var settingInputs = Array.prototype.slice.call(document.querySelectorAll("#settings input"));
+
+      function clampInput(input, max) {
+        var value = parseInt(input.value, 10);
+        if (!Number.isFinite(value) || value < 0) value = 0;
+        if (value > max) value = max;
+        input.value = String(value);
+        return value;
+      }
+
+      function readDuration() {
+        var h = clampInput(hours, 99);
+        var m = clampInput(minutes, 59);
+        var s = clampInput(seconds, 59);
+        return h * 3600 + m * 60 + s;
+      }
+
+      function formatTime(value) {
+        value = Math.max(0, Math.floor(value));
+        var h = Math.floor(value / 3600);
+        var m = Math.floor((value % 3600) / 60);
+        var s = value % 60;
+        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+      }
+
+      function updateIdleDisplay() {
+        if (state !== "idle") return;
+        totalSeconds = readDuration();
+        display.textContent = formatTime(mode === "down" ? totalSeconds : 0);
+        progress.style.width = "0%";
+        error.textContent = "";
+      }
+
+      function setSettingsDisabled(disabled) {
+        settingInputs.forEach(function (input) {
+          if (input.id !== "volume") input.disabled = disabled;
+        });
+        modeButtons.forEach(function (button) { button.disabled = disabled; });
+      }
+
+      function initAudio() {
+        if (!audioCtx) {
+          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return false;
+          audioCtx = new AudioContextClass();
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = parseFloat(volume.value);
+          masterGain.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return true;
+      }
+
+      function selectedSound() {
+        var checked = document.querySelector('input[name="sound"]:checked');
+        return checked ? checked.value : "clock";
+      }
+
+      function tone(freq, start, duration, type, amount) {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(amount, start + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        osc.connect(gain);
+        gain.connect(masterGain);
+        osc.start(start);
+        osc.stop(start + duration + 0.02);
+      }
+
+      function playTick(kind) {
+        if (!initAudio()) return;
+        var now = audioCtx.currentTime + 0.005;
+        if (kind === "xylophone") {
+          tone(880, now, 0.26, "sine", 0.34);
+          tone(3460, now, 0.12, "sine", 0.11);
+          tone(8390, now, 0.055, "sine", 0.035);
+        } else if (kind === "crystal") {
+          tone(1760, now, 0.23, "sine", 0.24);
+          tone(2640, now, 0.16, "sine", 0.10);
+        } else {
+          tone(980, now, 0.045, "triangle", 0.38);
+          tone(680, now, 0.028, "sine", 0.16);
+        }
+      }
+
+      function playFinish() {
+        if (!initAudio()) return;
+        var now = audioCtx.currentTime + 0.01;
+        [660, 880, 1100].forEach(function (freq, index) {
+          tone(freq, now + index * 0.16, 0.32, "sine", 0.3);
+        });
+      }
+
+      function requestWakeLock() {
+        if ("wakeLock" in navigator) {
+          navigator.wakeLock.request("screen").then(function (lock) {
+            wakeLock = lock;
+            wakeLock.addEventListener("release", function () { wakeLock = null; });
+          }).catch(function () {});
+        }
+      }
+
+      function releaseWakeLock() {
+        if (wakeLock) wakeLock.release().catch(function () {});
+        wakeLock = null;
+      }
+
+      function elapsedSeconds() {
+        if (state === "running") return elapsedBeforeRun + (performance.now() - runStartedAt) / 1000;
+        return elapsedBeforeRun;
+      }
+
+      function render() {
+        var elapsed = elapsedSeconds();
+        var whole = Math.floor(elapsed);
+        var finished = totalSeconds > 0 && elapsed >= totalSeconds;
+
+        if (finished) {
+          elapsedBeforeRun = totalSeconds;
+          state = "finished";
+          clearInterval(timerId);
+          timerId = null;
+          display.textContent = formatTime(mode === "down" ? 0 : totalSeconds);
+          progress.style.width = "100%";
+          status.textContent = "完成";
+          startPause.textContent = "重新開始";
+          startPause.dataset.state = "";
+          setSettingsDisabled(false);
+          releaseWakeLock();
+          playFinish();
+          return;
+        }
+
+        if (whole > lastWholeSecond) {
+          var ticks = Math.min(whole - lastWholeSecond, 1);
+          if (ticks > 0) playTick(selectedSound());
+          lastWholeSecond = whole;
+        }
+
+        var shown = mode === "down" ? Math.ceil(Math.max(0, totalSeconds - elapsed)) : whole;
+        display.textContent = formatTime(shown);
+        var percent = totalSeconds > 0 ? Math.min(100, elapsed / totalSeconds * 100) : 0;
+        progress.style.width = percent + "%";
+      }
+
+      function startTimer() {
+        error.textContent = "";
+        if (state === "finished") {
+          elapsedBeforeRun = 0;
+          lastWholeSecond = 0;
+        }
+        if (state === "idle" || state === "finished") {
+          totalSeconds = readDuration();
+          if (totalSeconds <= 0) {
+            error.textContent = "請先設定至少 1 秒。";
+            return;
+          }
+          elapsedBeforeRun = 0;
+          lastWholeSecond = 0;
+        }
+        initAudio();
+        runStartedAt = performance.now();
+        state = "running";
+        setSettingsDisabled(true);
+        startPause.textContent = "暫停";
+        startPause.dataset.state = "running";
+        status.textContent = mode === "down" ? "倒數中 · 每秒提示" : "正向計時中 · 每秒提示";
+        requestWakeLock();
+        clearInterval(timerId);
+        timerId = setInterval(render, 50);
+        render();
+      }
+
+      function pauseTimer() {
+        elapsedBeforeRun = elapsedSeconds();
+        state = "paused";
+        clearInterval(timerId);
+        timerId = null;
+        render();
+        startPause.textContent = "繼續";
+        startPause.dataset.state = "";
+        status.textContent = "已暫停";
+        releaseWakeLock();
+      }
+
+      function resetTimer() {
+        clearInterval(timerId);
+        timerId = null;
+        state = "idle";
+        elapsedBeforeRun = 0;
+        lastWholeSecond = 0;
+        startPause.textContent = "開始";
+        startPause.dataset.state = "";
+        status.textContent = "準備開始";
+        setSettingsDisabled(false);
+        releaseWakeLock();
+        updateIdleDisplay();
+      }
+
+      startPause.addEventListener("click", function () {
+        if (state === "running") pauseTimer(); else startTimer();
+      });
+      resetBtn.addEventListener("click", resetTimer);
+      preview.addEventListener("click", function () {
+        error.textContent = initAudio() ? "" : "這個瀏覽器不支援提示音。";
+        if (audioCtx) playTick(selectedSound());
+      });
+
+      modeButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          mode = button.dataset.mode;
+          modeButtons.forEach(function (item) {
+            item.setAttribute("aria-pressed", item === button ? "true" : "false");
+          });
+          timeLabel.textContent = mode === "down" ? "設定倒數時間" : "設定目標時間";
+          resetTimer();
+        });
+      });
+
+      [hours, minutes, seconds].forEach(function (input) {
+        input.addEventListener("input", updateIdleDisplay);
+        input.addEventListener("blur", updateIdleDisplay);
+      });
+      volume.addEventListener("input", function () {
+        var percent = Math.round(parseFloat(volume.value) * 100);
+        volumeValue.textContent = percent + "%";
+        if (masterGain) masterGain.gain.setTargetAtTime(parseFloat(volume.value), audioCtx.currentTime, 0.02);
+      });
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible" && state === "running") {
+          requestWakeLock();
+          render();
+        }
+      });
+      window.addEventListener("pagehide", releaseWakeLock);
+      updateIdleDisplay();
+    })();
+  </script>
+</body>
+</html>
